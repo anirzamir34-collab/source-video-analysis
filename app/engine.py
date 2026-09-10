@@ -105,7 +105,7 @@ def _sample_intervals(duration: float) -> tuple[float, float]:
     if duration <= 60:
         return 0.75, 0.25
     if duration <= 180:
-        return 1.0, 0.35
+        return 1.0, 0.60
     if duration <= 600:
         return 1.5, 0.50
     if duration <= 1800:
