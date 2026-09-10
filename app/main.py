@@ -92,7 +92,7 @@ def analyze(video: UploadFile = File(...)):
     try:
         print(f"[analyze] received name={video.filename} type={video.content_type}", flush=True)
         path = save_upload_to_temp(video, MAX_UPLOAD_MB * 1024 * 1024)
-        result = analyze_video(path)
+        result = analyze_video_twelvelabs(path)
         print(f"[analyze] complete actions={len(result['actions'])} frames={result['sampledFrames']} seconds={result['processingSeconds']}", flush=True)
         return result
     except HTTPException:
