@@ -574,20 +574,54 @@ def analyze_video(path: str, start_time: float | None = None, end_time: float | 
     )
 
     cap = cv2.VideoCapture(path)
+    fps_seq = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
     frames: list[tuple[float, list[tuple[np.ndarray, np.ndarray | None]], float]] = []
+
     with PoseLandmarker.create_from_options(options) as landmarker:
+        current_frame = -1
+        eof = False
+
         for idx, t in enumerate(sample_times):
-            frame = _read_frame_at(cap, t)
-            if frame is None:
-                continue
+            if fps_seq > 0:
+                target_frame = max(0, int(round(float(t) * fps_seq)))
+
+                while current_frame < target_frame:
+                    ok = cap.grab()
+                    if not ok:
+                        eof = True
+                        break
+                    current_frame += 1
+
+                if eof:
+                    break
+
+                ok, frame = cap.retrieve()
+                if not ok or frame is None:
+                    continue
+            else:
+                frame = _read_frame_at(cap, t)
+                if frame is None:
+                    continue
+
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(rgb))
-            result = landmarker.detect_for_video(mp_image, int(round(t * 1000.0)))
-            detections = _pose_arrays(result)
-            energy = coarse_energy_rel.get(round(t, 3), 0.0)
+            mp_image = mp.Image(
+                image_format=mp.ImageFormat.SRGB,
+                data=np.ascontiguousarray(rgb),
+            )
+            result = landmarker.detect_for_video(
+                mp_image,
+                int(round(float(t) * 1000.0)),
+            )
+            detections = _pose_array(result)
+            energy = coarse_energy_ref.get(round(float(t), 3), 0.0)
             frames.append((float(t), detections, float(energy)))
+
             if idx and idx % 75 == 0:
-                print(f"[analysis] pose samples {idx}/{len(sample_times)}", flush=True)
+                print(
+                    f"[analysis] pose samples {idx}/{len(sample_times)}",
+                    flush=True,
+                )
+
     cap.release()
 
     tracks = _associate_tracks(frames)
