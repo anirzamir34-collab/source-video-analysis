@@ -1,15 +1,21 @@
-from fastapi import FastAPI, HTTPException
+from __future__ import annotations
 
-from .config import SERVICE_NAME, SERVICE_VERSION, ENVIRONMENT
-from .schemas import HealthResponse, CapabilityResponse
+import os
+import traceback
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+
+from .config import ENVIRONMENT, MAX_POSES, MAX_UPLOAD_MB, MODEL_PATH, SERVICE_NAME, SERVICE_VERSION
+from .engine import analyze_video, save_upload_to_temp
+from .schemas import AnalysisResponse, CapabilityResponse, HealthResponse
+
 
 app = FastAPI(
     title="Source Video Interactive - External Analysis Service",
     version=SERVICE_VERSION,
     description=(
-        "External analysis backend for the Source Video Interactive project. "
-        "This first deployment exposes connectivity and capability checks only. "
-        "No fake ML inference is returned."
+        "Real source-video motion analysis service. Uses MediaPipe Pose Landmarker Lite, "
+        "multi-pose temporal association, posture/limb geometry and verified timestamps. "
+        "It does not synthesize missing actions."
     ),
 )
 
@@ -19,9 +25,11 @@ def root():
     return {
         "service": SERVICE_NAME,
         "status": "ok",
+        "version": SERVICE_VERSION,
         "docs": "/docs",
         "health": "/health",
         "capabilities": "/capabilities",
+        "analyze": "/analyze",
     }
 
 
@@ -37,37 +45,92 @@ def health():
 
 @app.get("/capabilities", response_model=CapabilityResponse)
 def capabilities():
+    model_ready = os.path.exists(MODEL_PATH)
     return CapabilityResponse(
-        external_analysis_configured=False,
-        tracking=False,
-        whole_body_pose=False,
-        temporal_action_localization=False,
-        note="Connectivity is working. Real tracker / pose / action models are not installed yet.",
+        external_analysis_configured=model_ready,
+        tracking=model_ready,
+        whole_body_pose=model_ready,
+        temporal_action_localization=model_ready,
+        engine="MediaPipe Pose Landmarker Lite + multi-pose temporal geometry",
+        max_poses=MAX_POSES,
+        note=(
+            "Real pose/tracking/action timing is enabled. The engine uses 33 pose landmarks and "
+            "does not invent scene objects or dialogue. Protagonist selection is based on persistence/size/centrality, not gender inference."
+            if model_ready else
+            f"Pose model is missing at {MODEL_PATH}. No fake inference will be returned."
+        ),
     )
 
 
-@app.post("/analyze")
-def analyze_not_configured():
-    raise HTTPException(
-        status_code=501,
-        detail={
-            "available": False,
-            "reason": "MODEL_PIPELINE_NOT_CONFIGURED",
-            "message": (
-                "The external service is reachable, but real video inference has not been installed yet. "
-                "No synthetic action data is returned."
-            ),
-        },
-    )
+def _raise_analysis_error(exc: Exception) -> None:
+    reason = str(exc)
+    if isinstance(exc, LookupError) or reason == "NO_POSE_DETECTED":
+        status = 422
+        message = "Videoda yeterli sürekliliğe sahip insan pozu algılanamadı. Sahte hareket üretilmedi."
+    elif reason == "VIDEO_TOO_LARGE":
+        status = 413
+        message = f"Video {MAX_UPLOAD_MB} MB yükleme sınırını aşıyor."
+    elif reason in {"VIDEO_OPEN_FAILED", "VIDEO_DURATION_UNKNOWN", "INVALID_SEGMENT_RANGE"}:
+        status = 422
+        message = "Video açılamadı veya zaman aralığı geçersiz."
+    elif reason.startswith("POSE_MODEL_MISSING"):
+        status = 503
+        message = "Pose modeli sunucuda bulunamadı; inference çalıştırılmadı."
+    else:
+        status = 500
+        message = "Gerçek analiz pipeline'ı çalışırken hata oluştu."
+    print(f"[analysis-error] {type(exc).__name__}: {exc}", flush=True)
+    traceback.print_exc()
+    raise HTTPException(status_code=status, detail={"available": False, "reason": reason, "message": message})
 
 
-@app.post("/analyze-segment")
-def analyze_segment_not_configured():
-    raise HTTPException(
-        status_code=501,
-        detail={
-            "available": False,
-            "reason": "MODEL_PIPELINE_NOT_CONFIGURED",
-            "message": "Segment analysis will be enabled only after the real inference pipeline is installed.",
-        },
-    )
+@app.post("/analyze", response_model=AnalysisResponse)
+def analyze(video: UploadFile = File(...)):
+    path = None
+    try:
+        print(f"[analyze] received name={video.filename} type={video.content_type}", flush=True)
+        path = save_upload_to_temp(video, MAX_UPLOAD_MB * 1024 * 1024)
+        result = analyze_video(path)
+        print(f"[analyze] complete actions={len(result['actions'])} frames={result['sampledFrames']} seconds={result['processingSeconds']}", flush=True)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_analysis_error(exc)
+    finally:
+        try:
+            video.file.close()
+        except Exception:
+            pass
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
+@app.post("/analyze-segment", response_model=AnalysisResponse)
+def analyze_segment(
+    video: UploadFile = File(...),
+    startTime: float | None = Form(default=None),
+    endTime: float | None = Form(default=None),
+):
+    path = None
+    try:
+        path = save_upload_to_temp(video, MAX_UPLOAD_MB * 1024 * 1024)
+        result = analyze_video(path, start_time=startTime, end_time=endTime)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_analysis_error(exc)
+    finally:
+        try:
+            video.file.close()
+        except Exception:
+            pass
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass

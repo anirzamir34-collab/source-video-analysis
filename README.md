@@ -1,94 +1,54 @@
-# Source Video Interactive — External Analysis Service
+# Source Video Analysis v0.2 — real pose/tracking pipeline
 
-Bu paket, Google AI Studio uygulamasındaki `EXTERNAL_ANALYSIS_URL` alanına bağlanacak harici FastAPI servisinin **ilk güvenli sürümüdür**.
+Bu sürüm önceki `501 MODEL_PIPELINE_NOT_CONFIGURED` servisinin yerine gerçek video inference ekler.
 
-## Bu sürüm ne yapar?
+## Gerçekte ne yapıyor?
 
-- `GET /health` gerçek bağlantı testi yapar.
-- `GET /capabilities` hangi analiz katmanlarının gerçekten kurulu olduğunu bildirir.
-- `POST /analyze` ve `POST /analyze-segment` şimdilik **501 Not Implemented** döndürür.
-- ByteTrack, MMPose/RTMPose veya MMAction2 kurulmuş gibi davranmaz.
-- Sahte action/timestamp üretmez.
+- Video dosyasını geçici diske **stream** eder; tamamını RAM'e almak zorunda değildir.
+- OpenCV ile videonun süresini ve hareket yoğunluğunu ölçer.
+- Önce seyrek motion scan yapar, hareketli aralıkları daha sık örnekler.
+- MediaPipe **Pose Landmarker Lite** ile kare başına en fazla 4 kişide 33 adet 3B pose landmark çıkarır.
+- Kişileri zaman boyunca merkez, gövde boyutu ve pose geometrisiyle track eder.
+- Ana karakteri zamansal süreklilik + görünür alan + merkezilik + pose görünürlüğü puanıyla seçer.
+- Otur/kalk/çömel/uzan, kol kaldır-indir, el-yüz/gövde, kol uzat-geri çek, baş/gövde yön değişimi, yer değiştirme, el-kol hareketi ve NPC'ye yaklaşma/uzaklaşma/fiziksel örtüşme gibi **ölçülebilir** hareketleri zaman aralıklarına dönüştürür.
+- Her action gerçek kaynak zaman kodu taşır ve `sourceVerified: true` yalnızca gözlenen pose/geometri kanıtından oluşturulan action'larda kullanılır.
+- Sahne nesnesi, diyalog veya görünmeyen eylem uydurmaz.
 
-Amaç önce Google AI Studio ↔ harici servis bağlantısını kesin olarak doğrulamaktır.
+## Önemli sınır
 
-## Yerelde çalıştırma
+`mainMaleTrackId` alanı mevcut interaktif uygulamayla uyumluluk için korunmuştur. Bu motor **cinsiyet tahmini yapmaz**. Çok kişili sahnelerde ana karakter en kalıcı/büyük/merkezi pose track olarak seçilir. Yanlış kişi seçilen videolar için ileride manuel protagonist-lock eklenebilir.
 
-Python 3.11+:
+## Endpoint'ler
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+- `GET /health`
+- `GET /capabilities`
+- `POST /analyze` — multipart `video`
+- `POST /analyze-segment` — multipart `video`, opsiyonel `startTime`, `endTime`
 
-Test:
+Başarılı `/analyze` cevabı doğrudan `source-video-interactive-app` tarafından kullanılabilecek `actions[]`, `videoPrompt`, `semanticVideoMap`, `videoDuration`, `mainMaleTrackId` alanlarını döndürür.
 
-```bash
-curl http://localhost:8000/health
-```
+## Render Free notu
 
-Beklenen yanıt:
+512 MB RAM / 0.1 CPU üzerinde **Lite** pose modeli seçilmiştir. Uzun videolar yavaş olabilir. Sistem videonun tamamını her 0.25 saniyede taramak yerine iki aşamalı örnekleme kullanır: önce motion scan, sonra hareketli pencerelerde daha sık pose analizi. Render web servisleri uzun HTTP yanıtlarına izin verse de ön yüzdeki upstream timeout uzun videolar için ayrıca yükseltilmelidir.
+
+## Deploy
+
+Mevcut `source-video-analysis` GitHub reposundaki dosyaları bu paketle değiştirip push edin. Render bağlıysa otomatik deploy başlar.
+
+Deploy sonrası:
+
+1. `https://source-video-analysis.onrender.com/health`
+2. `https://source-video-analysis.onrender.com/capabilities`
+
+`capabilities` içinde şu değerler `true` olmalıdır:
 
 ```json
 {
-  "status": "ok",
-  "service": "video-analysis",
-  "version": "0.1.0",
-  "environment": "production"
+  "external_analysis_configured": true,
+  "tracking": true,
+  "whole_body_pose": true,
+  "temporal_action_localization": true
 }
 ```
 
-## Docker ile çalıştırma
-
-```bash
-docker build -t source-video-analysis .
-docker run --rm -p 8080:8080 source-video-analysis
-```
-
-## Google Cloud Run'a dağıtma
-
-Google Cloud SDK kurulmuş ve oturum açılmışsa proje klasöründe:
-
-```bash
-gcloud run deploy source-video-analysis \
-  --source . \
-  --region europe-west1 \
-  --allow-unauthenticated
-```
-
-Dağıtım sonunda Cloud Run size şu tip bir HTTPS adresi verir:
-
-```text
-https://source-video-analysis-xxxxx.europe-west1.run.app
-```
-
-Önce `/health` adresini kontrol edin. `status: ok` döndükten sonra bu URL'yi Google AI Studio uygulamasındaki harici servis endpoint alanına yazın.
-
-## Google AI Studio tarafında beklenen davranış
-
-Bağlantı testi:
-
-```text
-GET {EXTERNAL_ANALYSIS_URL}/health
-```
-
-`200 OK` + `status=ok` alırsa servis durumu `CONNECTED` olarak gösterilebilir.
-
-Ancak `/capabilities` şu aşamada analiz modellerinin kapalı olduğunu söyleyecektir. Bu nedenle uygulama gerçek ML analizi hazırmış gibi davranmamalıdır.
-
-## Sonraki aşama
-
-Bağlantı doğrulandıktan sonra ayrı ayrı eklenecek katmanlar:
-
-1. Video upload ve güvenli geçici dosya yönetimi
-2. Person detection / persistent tracking
-3. MAIN_MALE_TRACK_ID kilitleme
-4. Whole-body pose
-5. RGB temporal action localization
-6. start/end frame doğrulaması
-7. Verified Master Action Timeline JSON
-8. `/analyze` ve `/analyze-segment` gerçek inference
-
-Bu katmanlar eklenene kadar servis bilinçli olarak sahte sonuç döndürmez.
+Ardından önce 10–30 saniyelik basit bir videoyla `/analyze` test edin.

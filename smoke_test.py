@@ -3,17 +3,11 @@ from app.main import app
 
 client = TestClient(app)
 
-response = client.get("/health")
-assert response.status_code == 200, response.text
-payload = response.json()
-assert payload["status"] == "ok"
-assert payload["service"] == "video-analysis"
+r = client.get('/health')
+assert r.status_code == 200, r.text
+assert r.json()['status'] == 'ok'
 
-capabilities = client.get("/capabilities")
-assert capabilities.status_code == 200
-assert capabilities.json()["external_analysis_configured"] is False
-
-analyze = client.post("/analyze")
-assert analyze.status_code == 501
-
-print("Smoke test passed.")
+r = client.get('/capabilities')
+assert r.status_code == 200, r.text
+assert 'external_analysis_configured' in r.json()
+print('smoke OK')

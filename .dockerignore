@@ -1,9 +1,8 @@
 __pycache__/
 *.py[cod]
-*.log
-.git/
-.gitignore
-.env
 .venv/
-venv/
-.DS_Store
+.git/
+*.mp4
+*.mov
+*.webm
+*.m4v
