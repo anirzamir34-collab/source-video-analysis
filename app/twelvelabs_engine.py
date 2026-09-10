@@ -39,6 +39,7 @@ SEGMENT_DEFINITIONS = [
             {
                 "name": "screen_position",
                 "type": "string",
+                "description": "Where the protagonist appears on screen",
                 "enum": ["center", "left", "right", "background", "off_screen"],
             },
             {
