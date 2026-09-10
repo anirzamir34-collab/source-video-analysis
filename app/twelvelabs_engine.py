@@ -10,7 +10,7 @@ SEGMENT_DEFINITIONS = [
     {
         "id": "protagonist_actions",
         "description": (
-            "Choose one primary recurring protagonist at the beginning of the video "
+            "Choose one clearly adult male recurring protagonist at the beginning of the video "
             "based on narrative continuity and screen presence, then keep tracking "
             "that exact same person for the entire video. Do not switch to another "
             "person when camera focus changes. Create a new segment whenever the "
@@ -29,7 +29,12 @@ SEGMENT_DEFINITIONS = [
             {
                 "name": "activity",
                 "type": "string",
-                "description": "Write one precise, literal sentence describing the adult male protagonist’s directly visible action. Include visible head direction, torso posture, arms, hands, hips, legs and feet when relevant. When another clearly adult person is present, include that person’s visible body position, physical proximity and exact contact points. Explicitly name visible kissing, embracing, lap-sitting or other adult physical intimacy when directly shown. Never infer obscured anatomy, intention or an off-screen act.",
+                "description": "Describe only the tracked adult male protagonist's directly visible movement or body position in one concise sentence. This applies to every video genre. Do not summarize the scene and do not describe another person here.",
+            },
+            {
+                "name": "male_choice",
+                "type": "string",
+                "description": "Create a short Turkish interactive-game choice containing only the tracked adult male protagonist's directly visible action. Use imperative form, preferably 3 to 10 words. Apply the same rule to normal, action, romantic and adult videos. Mention another adult only when necessary to identify the man's visible movement. Never summarize the scene, switch protagonist or invent an action.",
             },
             {
                 "name": "interaction",
@@ -176,6 +181,7 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
         activity = metadata.get("activity") or "Visible protagonist action"
         person = metadata.get("person")
         interaction = metadata.get("interaction")
+        male_choice = metadata.get("male_choice")
         male_body_detail = metadata.get("male_body_detail")
         other_adult_body_detail = metadata.get("other_adult_body_detail")
         physical_contact_detail = metadata.get("physical_contact_detail")
@@ -184,18 +190,7 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
         position = metadata.get("screen_position")
         speaking = metadata.get("speaking")
 
-        detail_parts = [
-            activity,
-            male_body_detail,
-            other_adult_body_detail,
-            physical_contact_detail,
-            adult_intimacy_detail,
-        ]
-        choice_label = " | ".join(
-            str(part).strip()
-            for part in detail_parts
-            if part and str(part).strip().lower() not in {"none", "null", "not applicable"}
-        )
+        choice_label = str(male_choice or activity).strip()
 
         semantic_map.append(
             {
@@ -204,6 +199,7 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
                 "person": person,
                 "activity": activity,
                 "interaction": interaction,
+                "maleChoice": male_choice,
                 "maleBodyDetail": male_body_detail,
                 "otherAdultBodyDetail": other_adult_body_detail,
                 "physicalContactDetail": physical_contact_detail,
@@ -224,6 +220,7 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
                 "afterState": {
                     "person": person,
                     "interaction": interaction,
+                    "maleChoice": male_choice,
                     "maleBodyDetail": male_body_detail,
                     "otherAdultBodyDetail": other_adult_body_detail,
                     "physicalContactDetail": physical_contact_detail,
