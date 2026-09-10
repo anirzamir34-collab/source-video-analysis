@@ -168,7 +168,7 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
             type="segment_definitions",
             segment_definitions=SEGMENT_DEFINITIONS,
         ),
-        min_segment_duration=1,
+        min_segment_duration=2,
         max_segment_duration=15,
         **task_args,
     )
