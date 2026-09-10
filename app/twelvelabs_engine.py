@@ -29,12 +29,12 @@ SEGMENT_DEFINITIONS = [
             {
                 "name": "activity",
                 "type": "string",
-                "description": "The protagonist's directly visible action",
+                "description": "Write one precise, literal sentence describing the adult male protagonist’s directly visible action. Include visible head direction, torso posture, arms, hands, hips, legs and feet when relevant. When another clearly adult person is present, include that person’s visible body position, physical proximity and exact contact points. Explicitly name visible kissing, embracing, lap-sitting or other adult physical intimacy when directly shown. Never infer obscured anatomy, intention or an off-screen act.",
             },
             {
                 "name": "interaction",
                 "type": "string",
-                "description": "Visible interaction with a person or object, or none",
+                "description": "Describe the directly visible physical interaction in concrete terms: who touches whom, which visible body parts make contact, relative body orientation, and whether proximity is none, close, embracing or intimate. Describe clearly visible adult intimacy literally without euphemisms. If contact is hidden, uncertain or off-screen, state that it is not visible.",
             },
             {
                 "name": "screen_position",
