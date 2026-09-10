@@ -15,7 +15,7 @@ SEGMENT_DEFINITIONS = [
             "that exact same person for the entire video. Do not switch to another "
             "person when camera focus changes. Create a new segment whenever the "
             "protagonist's directly visible action, movement, interaction, or location "
-            "meaningfully changes. If the protagonist is off-screen, do not substitute "
+            "meaningfully changes. Also create a separate segment whenever the male protagonist's visible tempo, direction, posture, contact point, body orientation or interaction variation changes, even when the base action remains the same. Do not merge visibly different variations into one segment. Keep segments short and precise, preferably between 2 and 15 seconds. If the protagonist is off-screen, do not substitute "
             "another person. Describe only events directly visible in the source video. "
             "Do not infer intentions or invent actions, objects, dialogue, outcomes, "
             "or off-screen events."
@@ -168,8 +168,8 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
             type="segment_definitions",
             segment_definitions=SEGMENT_DEFINITIONS,
         ),
-        min_segment_duration=2,
-        max_segment_duration=20,
+        min_segment_duration=1,
+        max_segment_duration=15,
         **task_args,
     )
 
