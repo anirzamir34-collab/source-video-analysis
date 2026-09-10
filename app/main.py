@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from .twelvelabs_engine import analyze_video_twelvelabs
+
 import os
 import traceback
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from .config import ENVIRONMENT, MAX_POSES, MAX_UPLOAD_MB, MODEL_PATH, SERVICE_NAME, SERVICE_VERSION
-from .engine import analyze_video, save_upload_to_temp
+from .engine import save_upload_to_temp
 from .schemas import AnalysisResponse, CapabilityResponse, HealthResponse
 
 
@@ -118,7 +120,7 @@ def analyze_segment(
     path = None
     try:
         path = save_upload_to_temp(video, MAX_UPLOAD_MB * 1024 * 1024)
-        result = analyze_video(path, start_time=startTime, end_time=endTime)
+        result = analyze_video_twelvelabs(path, start_time=startTime, end_time=endTime)
         return result
     except HTTPException:
         raise
