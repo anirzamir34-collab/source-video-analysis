@@ -10,7 +10,7 @@ SEGMENT_DEFINITIONS = [
     {
         "id": "protagonist_actions",
         "description": (
-            "Choose one clearly adult male recurring protagonist at the beginning of the video "
+            "Choose one recurring male protagonist at the beginning of the video "
             "based on narrative continuity and screen presence, then keep tracking "
             "that exact same person for the entire video. Do not switch to another "
             "person when camera focus changes. Create a new segment whenever the "
@@ -29,12 +29,12 @@ SEGMENT_DEFINITIONS = [
             {
                 "name": "activity",
                 "type": "string",
-                "description": "Describe only the tracked adult male protagonist's directly visible movement or body position in one concise sentence. This applies to every video genre. Do not summarize the scene and do not describe another person here.",
+                "description": "Describe only the tracked male protagonist's directly visible movement or body position in one concise sentence. This applies to every video genre. Do not summarize the scene and do not describe another person here.",
             },
             {
                 "name": "male_choice",
                 "type": "string",
-                "description": "Create a short Turkish interactive-game choice containing only the tracked adult male protagonist's directly visible action. Use imperative form, preferably 3 to 10 words. Apply the same rule to normal, action, romantic and adult videos. Mention another adult only when necessary to identify the man's visible movement. Never summarize the scene, switch protagonist or invent an action.",
+                "description": "Create a short Turkish interactive-game choice containing only the tracked male protagonist's directly visible action. Use imperative form, preferably 3 to 10 words. Apply the same rule to normal, action, romantic and adult videos. Mention another adult only when necessary to identify the man's visible movement. Never summarize the scene, switch protagonist or invent an action.",
             },
             {
                 "name": "interaction",
@@ -44,7 +44,7 @@ SEGMENT_DEFINITIONS = [
             {
                 "name": "male_body_detail",
                 "type": "string",
-                "description": "Describe the clearly adult male protagonist's entire visible body literally and precisely: head and gaze, neck, shoulders, chest, back, abdomen, waist, pelvis, hips, buttocks, arms, hands, thighs, knees, lower legs and feet. State the position and movement of every relevant visible region. Do not infer anything hidden by clothing, another body, framing or camera angle.",
+                "description": "Describe the male protagonist's entire visible body literally and precisely: head and gaze, neck, shoulders, chest, back, abdomen, waist, pelvis, hips, buttocks, arms, hands, thighs, knees, lower legs and feet. State the position and movement of every relevant visible region. Do not infer anything hidden by clothing, another body, framing or camera angle.",
             },
             {
                 "name": "other_adult_body_detail",
