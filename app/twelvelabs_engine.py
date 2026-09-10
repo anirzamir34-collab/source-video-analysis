@@ -37,6 +37,31 @@ SEGMENT_DEFINITIONS = [
                 "description": "Describe the directly visible physical interaction in concrete terms: who touches whom, which visible body parts make contact, relative body orientation, and whether proximity is none, close, embracing or intimate. Describe clearly visible adult intimacy literally without euphemisms. If contact is hidden, uncertain or off-screen, state that it is not visible.",
             },
             {
+                "name": "male_body_detail",
+                "type": "string",
+                "description": "Describe the clearly adult male protagonist's entire visible body literally and precisely: head and gaze, neck, shoulders, chest, back, abdomen, waist, pelvis, hips, buttocks, arms, hands, thighs, knees, lower legs and feet. State the position and movement of every relevant visible region. Do not infer anything hidden by clothing, another body, framing or camera angle.",
+            },
+            {
+                "name": "other_adult_body_detail",
+                "type": "string",
+                "description": "Describe the other clearly adult person's entire visible body with the same anatomical precision, including body orientation and position relative to the male protagonist. Use neutral anatomical terms. If a region is obscured or outside the frame, explicitly state that it is not visible.",
+            },
+            {
+                "name": "physical_contact_detail",
+                "type": "string",
+                "description": "Map every directly visible point of physical contact: identify whose body part touches which body part of the other adult, the direction of contact, body orientation and movement. Name lips, mouth, chest, breasts, waist, pelvis, hips, buttocks, thighs, legs or other regions only when the contact is directly visible and unambiguous. Never infer contact through occlusion.",
+            },
+            {
+                "name": "adult_intimacy_detail",
+                "type": "string",
+                "description": "If clearly adult physical or sexual intimacy is directly visible, describe the visible action literally, anatomically and without euphemisms. Distinguish kissing, embracing, lap-sitting, body pressing, touching and any other directly visible intimate action. If no such action is visible, return none. Never infer intention, arousal, hidden anatomy or an off-screen act.",
+            },
+            {
+                "name": "visibility_limits",
+                "type": "string",
+                "description": "List important body regions or contact details that cannot be verified because they are covered, obscured, outside the frame or visually ambiguous.",
+            },
+            {
                 "name": "screen_position",
                 "type": "string",
                 "description": "Where the protagonist appears on screen",
@@ -151,8 +176,26 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
         activity = metadata.get("activity") or "Visible protagonist action"
         person = metadata.get("person")
         interaction = metadata.get("interaction")
+        male_body_detail = metadata.get("male_body_detail")
+        other_adult_body_detail = metadata.get("other_adult_body_detail")
+        physical_contact_detail = metadata.get("physical_contact_detail")
+        adult_intimacy_detail = metadata.get("adult_intimacy_detail")
+        visibility_limits = metadata.get("visibility_limits")
         position = metadata.get("screen_position")
         speaking = metadata.get("speaking")
+
+        detail_parts = [
+            activity,
+            male_body_detail,
+            other_adult_body_detail,
+            physical_contact_detail,
+            adult_intimacy_detail,
+        ]
+        choice_label = " | ".join(
+            str(part).strip()
+            for part in detail_parts
+            if part and str(part).strip().lower() not in {"none", "null", "not applicable"}
+        )
 
         semantic_map.append(
             {
@@ -161,6 +204,11 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
                 "person": person,
                 "activity": activity,
                 "interaction": interaction,
+                "maleBodyDetail": male_body_detail,
+                "otherAdultBodyDetail": other_adult_body_detail,
+                "physicalContactDetail": physical_contact_detail,
+                "adultIntimacyDetail": adult_intimacy_detail,
+                "visibilityLimits": visibility_limits,
                 "screenPosition": position,
                 "speaking": speaking,
             }
@@ -169,13 +217,18 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
         actions.append(
             {
                 "actionId": f"tl-{index + 1:03d}",
-                "label": activity,
+                "label": choice_label,
                 "startTime": start,
                 "endTime": end,
                 "beforeState": None,
                 "afterState": {
                     "person": person,
                     "interaction": interaction,
+                    "maleBodyDetail": male_body_detail,
+                    "otherAdultBodyDetail": other_adult_body_detail,
+                    "physicalContactDetail": physical_contact_detail,
+                    "adultIntimacyDetail": adult_intimacy_detail,
+                    "visibilityLimits": visibility_limits,
                     "screenPosition": position,
                     "speaking": speaking,
                 },
