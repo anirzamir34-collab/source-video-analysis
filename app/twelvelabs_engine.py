@@ -37,6 +37,22 @@ SEGMENT_DEFINITIONS = [
                 "description": "Create a short Turkish interactive-game choice containing only the tracked male protagonist's directly visible action. Use imperative form, preferably 3 to 10 words. Apply the same rule to normal, action, romantic and adult videos. Mention another adult only when necessary to identify the man's visible movement. Never summarize the scene, switch protagonist or invent an action.",
             },
             {
+                "name": "movement_type",
+                "type": "string",
+                "description": "Return a short reusable category for only the male protagonist's directly visible action, such as sitting, standing, walking, running, turning, holding, kissing, pushing or another literal action visible in the source. Do not describe the scene.",
+            },
+            {
+                "name": "movement_variant",
+                "type": "string",
+                "description": "State what makes this male action visibly different from nearby male actions: speed change, direction change, posture change, contact change or continuation. Use a short Turkish phrase. Never invent a variation that is not directly visible.",
+            },
+            {
+                "name": "movement_tempo",
+                "type": "string",
+                "description": "Classify the directly visible speed of the male action.",
+                "enum": ["still", "slow", "moderate", "fast", "changing", "unclear"],
+            },
+            {
                 "name": "interaction",
                 "type": "string",
                 "description": "Describe the directly visible physical interaction in concrete terms: who touches whom, which visible body parts make contact, relative body orientation, and whether proximity is none, close, embracing or intimate. Describe clearly visible adult intimacy literally without euphemisms. If contact is hidden, uncertain or off-screen, state that it is not visible.",
@@ -182,6 +198,14 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
         person = metadata.get("person")
         interaction = metadata.get("interaction")
         male_choice = metadata.get("male_choice")
+        movement_type = metadata.get("movement_type") or activity
+        movement_variant = metadata.get("movement_variant") or ""
+        movement_tempo = metadata.get("movement_tempo") or "unclear"
+        choice_key = "|".join(
+            str(value).strip().lower()
+            for value in (movement_type, movement_variant, movement_tempo)
+            if value and str(value).strip()
+        )
         male_body_detail = metadata.get("male_body_detail")
         other_adult_body_detail = metadata.get("other_adult_body_detail")
         physical_contact_detail = metadata.get("physical_contact_detail")
@@ -200,6 +224,10 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
                 "activity": activity,
                 "interaction": interaction,
                 "maleChoice": male_choice,
+                "choiceKey": choice_key,
+                "movementType": movement_type,
+                "movementVariant": movement_variant,
+                "movementTempo": movement_tempo,
                 "maleBodyDetail": male_body_detail,
                 "otherAdultBodyDetail": other_adult_body_detail,
                 "physicalContactDetail": physical_contact_detail,
@@ -214,6 +242,7 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
             {
                 "actionId": f"tl-{index + 1:03d}",
                 "label": choice_label,
+                "choiceKey": choice_key,
                 "startTime": start,
                 "endTime": end,
                 "beforeState": None,
@@ -221,6 +250,10 @@ def analyze_video_twelvelabs(path, start_time=None, end_time=None):
                     "person": person,
                     "interaction": interaction,
                     "maleChoice": male_choice,
+                    "choiceKey": choice_key,
+                    "movementType": movement_type,
+                    "movementVariant": movement_variant,
+                    "movementTempo": movement_tempo,
                     "maleBodyDetail": male_body_detail,
                     "otherAdultBodyDetail": other_adult_body_detail,
                     "physicalContactDetail": physical_contact_detail,

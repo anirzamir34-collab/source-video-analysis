@@ -22,6 +22,7 @@ class CapabilityResponse(BaseModel):
 class ActionItem(BaseModel):
     actionId: str
     label: str
+    choiceKey: str | None = None
     startTime: float
     endTime: float
     beforeState: dict[str, Any] | None = None
