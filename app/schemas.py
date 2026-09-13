@@ -32,6 +32,33 @@ class ActionItem(BaseModel):
     subjectTrackId: str
     evidence: dict[str, Any] | None = None
 
+    # Optional gameplay metadata. The pose engine may omit these fields; keeping
+    # them optional preserves compatibility while allowing richer upstream
+    # analyzers to pass source-verified scene structure through this service.
+    actionLevel: str | None = None
+    actionType: str | None = None
+    adultScene: bool = False
+    adultSceneId: str | None = None
+    adultSceneStartTime: float | None = None
+    adultSceneEndTime: float | None = None
+    postSceneTime: float | None = None
+    positionId: str | None = None
+    positionOccurrenceId: str | None = None
+    activityType: str | None = None
+    positionLabel: str | None = None
+    positionStartTime: float | None = None
+    positionEndTime: float | None = None
+    movementType: str | None = None
+    loopStartTime: float | None = None
+    loopEndTime: float | None = None
+    maleProgressRate: float | None = None
+    femaleProgressRate: float | None = None
+    outcomeType: str | None = None
+    outcomeLabel: str | None = None
+    outcomeStartTime: float | None = None
+    outcomeEndTime: float | None = None
+    outcomeUnlockProgress: float | None = None
+
 
 class AnalysisResponse(BaseModel):
     available: bool = True
