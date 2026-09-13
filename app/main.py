@@ -8,6 +8,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from .config import ENVIRONMENT, MAX_POSES, MAX_UPLOAD_MB, MODEL_PATH, SERVICE_NAME, SERVICE_VERSION
 from .engine import save_upload_to_temp
+from .hardening import ANALYSIS_ENGINE_VERSION, ANALYSIS_SCHEMA_VERSION, harden_analysis_result
 from .schemas import AnalysisResponse, CapabilityResponse, HealthResponse
 
 
@@ -15,9 +16,9 @@ app = FastAPI(
     title="Source Video Interactive - External Analysis Service",
     version=SERVICE_VERSION,
     description=(
-        "Real source-video motion analysis service. Uses MediaPipe Pose Landmarker Lite, "
-        "multi-pose temporal association, posture/limb geometry and verified timestamps. "
-        "It does not synthesize missing actions."
+        "Real source-video motion analysis service. Uses source-verified video analysis, "
+        "integrity filtering, versioned output and verified timestamps. It never synthesizes "
+        "replacement actions when evidence is missing or invalid."
     ),
 )
 
@@ -28,6 +29,8 @@ def root():
         "service": SERVICE_NAME,
         "status": "ok",
         "version": SERVICE_VERSION,
+        "analysisSchemaVersion": ANALYSIS_SCHEMA_VERSION,
+        "analysisEngineVersion": ANALYSIS_ENGINE_VERSION,
         "docs": "/docs",
         "health": "/health",
         "capabilities": "/capabilities",
@@ -53,11 +56,11 @@ def capabilities():
         tracking=model_ready,
         whole_body_pose=model_ready,
         temporal_action_localization=model_ready,
-        engine="MediaPipe Pose Landmarker Lite + multi-pose temporal geometry",
+        engine="Source-video analyzer + integrity hardening v1",
         max_poses=MAX_POSES,
         note=(
-            "Real pose/tracking/action timing is enabled. The engine uses 33 pose landmarks and "
-            "does not invent scene objects or dialogue. Protagonist selection is based on persistence/size/centrality, not gender inference."
+            f"Real analysis is enabled with schema {ANALYSIS_SCHEMA_VERSION}. Invalid timestamped actions are dropped, never replaced or invented. "
+            "Protagonist selection is based on source-video continuity rather than identity inference."
             if model_ready else
             f"Pose model is missing at {MODEL_PATH}. No fake inference will be returned."
         ),
@@ -86,6 +89,23 @@ def _raise_analysis_error(exc: Exception) -> None:
     raise HTTPException(status_code=status, detail={"available": False, "reason": reason, "message": message})
 
 
+def _finalize_result(result: dict, *, start_time: float | None = None, end_time: float | None = None) -> dict:
+    hardened = harden_analysis_result(
+        result,
+        requested_start=start_time,
+        requested_end=end_time,
+    )
+    integrity = hardened.get("integrity") or {}
+    print(
+        "[integrity] "
+        f"accepted={integrity.get('acceptedActionCount', 0)} "
+        f"dropped={integrity.get('droppedActionCount', 0)} "
+        f"coverage={hardened.get('analysisCoverage', 0)}",
+        flush=True,
+    )
+    return hardened
+
+
 @app.post("/analyze", response_model=AnalysisResponse)
 def analyze(video: UploadFile = File(...)):
     path = None
@@ -93,7 +113,12 @@ def analyze(video: UploadFile = File(...)):
         print(f"[analyze] received name={video.filename} type={video.content_type}", flush=True)
         path = save_upload_to_temp(video, MAX_UPLOAD_MB * 1024 * 1024)
         result = analyze_video_twelvelabs(path)
-        print(f"[analyze] complete actions={len(result['actions'])} frames={result['sampledFrames']} seconds={result.get('processingSeconds', 'n/a')}", flush=True)
+        result = _finalize_result(result)
+        print(
+            f"[analyze] complete actions={len(result['actions'])} "
+            f"frames={result['sampledFrames']} seconds={result.get('processingSeconds', 'n/a')}",
+            flush=True,
+        )
         return result
     except HTTPException:
         raise
@@ -121,7 +146,7 @@ def analyze_segment(
     try:
         path = save_upload_to_temp(video, MAX_UPLOAD_MB * 1024 * 1024)
         result = analyze_video_twelvelabs(path, start_time=startTime, end_time=endTime)
-        return result
+        return _finalize_result(result, start_time=startTime, end_time=endTime)
     except HTTPException:
         raise
     except Exception as exc:

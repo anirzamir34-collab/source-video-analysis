@@ -62,6 +62,11 @@ class ActionItem(BaseModel):
 
 class AnalysisResponse(BaseModel):
     available: bool = True
+    schemaVersion: int = 4
+    engineVersion: str = "source-video-analysis-hardening-v1"
+    analysisComplete: bool = True
+    analysisCoverage: float = 0.0
+    integrity: dict[str, Any] = {}
     engine: str
     videoDuration: float
     mainMaleTrackId: str | None
