@@ -1,0 +1,29 @@
+name: Validate analysis hardening v1
+
+on:
+  push:
+    branches:
+      - hardening/engine-v1
+    paths:
+      - 'app/hardening.py'
+      - 'app/main.py'
+      - 'app/schemas.py'
+      - 'tests/test_hardening.py'
+      - '.github/workflows/validate-engine-hardening-v1.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install lightweight test dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Compile changed Python modules
+        run: python -m py_compile app/hardening.py app/main.py app/schemas.py tests/test_hardening.py
+      - name: Run hardening tests
+        run: pytest -q tests/test_hardening.py
+      - name: Check whitespace
+        run: git diff --check
