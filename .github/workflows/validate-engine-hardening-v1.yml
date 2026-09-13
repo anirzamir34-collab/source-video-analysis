@@ -24,6 +24,8 @@ jobs:
       - name: Compile changed Python modules
         run: python -m py_compile app/hardening.py app/main.py app/schemas.py tests/test_hardening.py
       - name: Run hardening tests
+        env:
+          PYTHONPATH: .
         run: pytest -q tests/test_hardening.py
       - name: Check whitespace
         run: git diff --check
