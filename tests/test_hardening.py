@@ -115,3 +115,46 @@ def test_confidence_is_clamped_but_source_action_is_not_rewritten():
     )
     assert result["actions"][0]["confidence"] == 1.0
     assert result["actions"][0]["label"] == "A"
+
+
+def test_analyze_endpoints_use_local_pose_engine(monkeypatch, tmp_path):
+    """Both video endpoints invoke the local pose engine without an external API key."""
+    from fastapi.testclient import TestClient
+    import app.main as analysis_server
+
+    calls = []
+
+    def fake_save_upload(upload, _max_bytes):
+        path = tmp_path / "source.mp4"
+        path.write_bytes(upload.file.read())
+        return str(path)
+
+    def fake_pose_analysis(path, start_time=None, end_time=None):
+        assert path.endswith("source.mp4")
+        calls.append((start_time, end_time))
+        return _base_result([{
+            "actionId": "pose-1",
+            "label": "Görünür hareket",
+            "startTime": 10,
+            "endTime": 12,
+            "sourceVerified": True,
+            "confidence": 0.8,
+            "subjectTrackId": "p",
+        }], duration=30)
+
+    monkeypatch.setattr(analysis_server, "save_upload_to_temp", fake_save_upload)
+    monkeypatch.setattr(analysis_server, "analyze_video", fake_pose_analysis)
+
+    client = TestClient(analysis_server.app)
+    full = client.post("/analyze", files={"video": ("clip.mp4", b"test", "video/mp4")})
+    segment = client.post(
+        "/analyze-segment",
+        data={"startTime": "10", "endTime": "20"},
+        files={"video": ("clip.mp4", b"test", "video/mp4")},
+    )
+
+    assert full.status_code == 200, full.text
+    assert segment.status_code == 200, segment.text
+    assert [action["actionId"] for action in full.json()["actions"]] == ["pose-1"]
+    assert [action["actionId"] for action in segment.json()["actions"]] == ["pose-1"]
+    assert calls == [(None, None), (10.0, 20.0)]
